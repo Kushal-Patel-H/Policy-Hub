@@ -4,7 +4,11 @@ module.exports = {
         "./src/**/*.{js,jsx,ts,tsx}",  // <-- this line is very important
     ],
     theme: {
-        extend: {},
+        extend: {
+             fontFamily: {
+        eczar: ['Eczar', 'serif'], // ✅ add Eczar font
+      },
+        },
     },
     plugins: [],
 };

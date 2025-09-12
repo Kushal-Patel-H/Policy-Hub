@@ -38,7 +38,7 @@ export default function AppNavbar({ onLogout }) {
       className="sticky top-0 z-40 w-full shadow-sm"
       style={{ backgroundColor: NAV_BG }}
     >
-      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+      <nav className="w-full h-14 flex items-center justify-between px-6">
         {/* logo */}
         <div className="flex items-center gap-2">
           <img

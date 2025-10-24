@@ -12,27 +12,33 @@ function Alerts() {
         Monitor and manage email alerts sent to customers for policy renewals and expiries here
       </p>
 
-      {/* Summary Cards */}
-      <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Reusable Card */}
-        {[
-          { icon: alertIcon, label: "Total Alerts" },
-          { icon: successIcon, label: "Successfully Sent" },
-          { icon: pendingIcon, label: "Pending" },
-          { icon: failedIcon, label: "Failed" },
-        ].map((item, i) => (
-          <div
-            key={i}
-            className="relative rounded-xl bg-white shadow-sm border border-gray-100 overflow-hidden min-h-[110px] flex items-center gap-4 p-6"
-          >
-            <img src={item.icon} alt={item.label} className="h-10 w-10" />
-            <div>
-              <div className="text-sm font-semibold text-gray-800">{item.label}</div>
-            </div>
-            <div className="ml-auto text-lg font-bold text-gray-900">N</div>
-          </div>
-        ))}
+    {/* Summary Cards */}
+<div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+  {[
+    { icon: alertIcon, label: "Total Alerts" },
+    { icon: successIcon, label: "Successfully Sent" },
+    { icon: pendingIcon, label: "Pending" },
+    { icon: failedIcon, label: "Failed" },
+  ].map((item, i) => (
+    <div
+      key={i}
+      className="relative flex flex-col bg-white shadow rounded-lg p-4 border overflow-hidden min-h-[120px]"
+    >
+      {/* left accent */}
+      <div className="absolute inset-y-0 left-0 w-1 bg-[#0A2A67]" />
+
+      {/* top row: icon + value */}
+      <div className="flex items-center justify-between w-full">
+        <img src={item.icon} alt={item.label} className="w-10 h-10" />
+        <p className="text-xl font-bold text-gray-900">N</p>
       </div>
+
+      {/* label */}
+      <p className="mt-2 text-gray-700 font-medium text-sm">{item.label}</p>
+    </div>
+  ))}
+</div>
+
 
       {/* Filters */}
       <div className="mt-8 bg-white shadow rounded-xl border border-gray-200 p-4">

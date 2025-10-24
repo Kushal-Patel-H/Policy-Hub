@@ -7,13 +7,24 @@ import AddPolicy from "../pages/AddPolicy/AddPolicy";
 import Alerts from "../pages/Alerts/Alerts";
 import Reminders from "../pages/Reminders/Reminders";
 import Profile from "../pages/Profile/Profile";
+import ProtectedRoute from "./ProtectedRoute";
 
 export default function AppRoutes() {
   return (
-    <BrowserRouter>
       <Routes>
+        {/* Public route */}
         <Route path="/" element={<Welcome />} />
-        <Route element={<AppLayout />}>
+         <Route path="/login" element={<Welcome />} />
+      <Route path="/register" element={<Welcome />} />
+
+        {/* Protected routes */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/policies" element={<Policies />} />
           <Route path="/add-policy" element={<AddPolicy />} />
@@ -22,6 +33,5 @@ export default function AppRoutes() {
           <Route path="/profile" element={<Profile />} />
         </Route>
       </Routes>
-    </BrowserRouter>
   );
 }

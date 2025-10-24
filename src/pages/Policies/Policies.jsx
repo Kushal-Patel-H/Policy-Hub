@@ -35,18 +35,18 @@ export default function Policies() {
   return (
     <div className="p-6">
       {/* Heading */}
-      <h1 className="text-2xl font-bold mb-2">
-        Manage and track all your customer policies here
-      </h1>
+      <h2 className="text-center text-xl font-semibold text-gray-700 mb-6">
+        Track and manage upcoming policy expiries and renewals here
+      </h2>
 
       {/* Filters */}
       <div className="flex flex-col md:flex-row md:items-center gap-3 mb-6">
         {/* Search */}
-        <div className="flex items-center border rounded-md px-3 py-2 w-full md:w-1/3">
+        <div className="flex items-center border rounded-md px-1 py-2 w-full md:w-1/3">
           <FaSearch className="text-gray-400 mr-2" />
           <input
             type="text"
-            placeholder="Search by customer name, policy number, or email..."
+            placeholder="Search by customer name or policy number..."
             className="flex-1 outline-none"
           />
         </div>
@@ -67,19 +67,19 @@ export default function Policies() {
         <div className="flex items-center gap-2 ml-auto">
           <button
             onClick={() => setView("grid")}
-            className={`flex items-center gap-1 px-3 py-2 border rounded-md ${
-              view === "grid" ? "bg-blue-600 text-white" : ""
+            className={`bg-blue-100 text-blue-800 font-semibold px-4 py-2 rounded-md text-sm ${
+              view === "grid" ? "bg-blue-900 text-white" : ""
             }`}
           >
-            <FaThLarge /> Grid View
+             Grid View
           </button>
           <button
             onClick={() => setView("list")}
-            className={`flex items-center gap-1 px-3 py-2 border rounded-md ${
-              view === "list" ? "bg-blue-600 text-white" : ""
+            className={`bg-blue-100 text-blue-800 font-semibold px-4 py-2 rounded-md text-sm ${
+              view === "list" ? "bg-blue-900 text-white" : ""
             }`}
           >
-            <FaList /> List View
+           List View
           </button>
         </div>
       </div>

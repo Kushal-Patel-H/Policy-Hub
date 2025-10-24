@@ -1,15 +1,17 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import logo from "../../assets/Logo.png";
+import { useAuthContext } from "../../context/AuthContext";
+
 
 const NAV_BG = "#0A2A67";
 
-export default function AppNavbar({ onLogout }) {
+export default function AppNavbar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
-
+  const { logout } = useAuthContext();
   // click-outside for profile dropdown
   useEffect(() => {
     const handler = (e) => {
@@ -27,11 +29,12 @@ export default function AppNavbar({ onLogout }) {
         : "text-white/80 hover:text-white hover:bg-white/10"
     }`;
 
-  const handleLogout = () => {
-    setOpen(false);
-    onLogout?.();
-    // navigate("/"); // redirect on logout if needed
-  };
+  const handleLogout = async () => {
+  setOpen(false);
+  await logout(); // ✅ from AuthContext
+  navigate("/"); // ✅ redirect to Welcome page
+};
+
 
   return (
     <header

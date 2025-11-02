@@ -8,7 +8,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ✅ Correct relative path to config and token files
+// ✅ Paths to credentials and token files
 const credentialsPath = path.resolve(__dirname, "config", "googleConfig.json");
 const tokenPath = path.resolve(__dirname, "token.json");
 
@@ -16,14 +16,8 @@ const tokenPath = path.resolve(__dirname, "token.json");
 if (!fs.existsSync(credentialsPath)) {
   throw new Error(`❌ googleConfig.json not found at: ${credentialsPath}`);
 }
-if (!fs.existsSync(tokenPath)) {
-  throw new Error(`❌ token.json not found at: ${tokenPath}`);
-}
 
 const credentials = JSON.parse(fs.readFileSync(credentialsPath, "utf-8"));
-const token = JSON.parse(fs.readFileSync(tokenPath, "utf-8"));
-
-// ✅ Extract OAuth client details safely
 const { client_id, client_secret, redirect_uris = [] } = credentials.web || {};
 if (!client_id || !client_secret || redirect_uris.length === 0) {
   throw new Error("❌ Invalid googleConfig.json format — missing OAuth fields");
@@ -35,17 +29,30 @@ const oAuth2Client = new google.auth.OAuth2(
   client_secret,
   redirect_uris[0]
 );
-oAuth2Client.setCredentials(token);
 
-// ✅ Initialize Google Drive API
+// ✅ Try loading token.json — but don’t crash if it’s missing
+if (fs.existsSync(tokenPath)) {
+  const token = JSON.parse(fs.readFileSync(tokenPath, "utf-8"));
+  oAuth2Client.setCredentials(token);
+  console.log("✅ Token loaded successfully from token.json");
+} else {
+  console.warn("⚠️ token.json not found. Please authenticate via /auth route first.");
+}
+
+// ✅ Initialize Google Drive API (client will still be valid after token set)
 const drive = google.drive({ version: "v3", auth: oAuth2Client });
 
-// ✅ Replace with your Drive folder ID
+// ✅ Your Drive folder ID (update this if needed)
 const FOLDER_ID = "1J4nm0mhDpfn7UmUL3VP75Socp97Ld3mk";
 
 // ✅ Function: upload file to Google Drive
 export async function uploadFileToDrive(filePath, fileName) {
   try {
+    // Prevent upload if no token
+    if (!fs.existsSync(tokenPath)) {
+      throw new Error("⚠️ Missing token.json. Please authenticate via /auth first.");
+    }
+
     console.log("📁 Uploading file to Google Drive...");
 
     const fileMetadata = {

@@ -1,33 +1,49 @@
 import { useState } from "react";
 import { FaUser, FaLock, FaEnvelope } from "react-icons/fa";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth, db } from "../../firebase"; // ✅ added db import
-import { doc, setDoc } from "firebase/firestore"; // ✅ import for Firestore
+import { auth, db } from "../../firebase";
+import { doc, setDoc } from "firebase/firestore";
 import toast from "react-hot-toast";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { initializeUserProfile } from "../../../api/userApi.js";
 
-export default function RegisterModal({ open, onClose, onRegisterSuccess, onSwitchToLogin }) {
+
+export default function RegisterModal({
+  open,
+  onClose,
+  onRegisterSuccess,
+  onSwitchToLogin,
+}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
+
+  const navigate = useNavigate();
 
   if (!open) return null;
 
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      // ✅ 1. Create new user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
       const user = userCredential.user;
 
-      // ✅ Store username + email in Firestore under users collection
-      await setDoc(doc(db, "users", user.uid), {
-        username: username,
-        email: email,
-        createdAt: new Date(),
-      });
+      // ✅ 2. Initialize Firestore document with full profile schema
+      await initializeUserProfile(user.uid, email, username);
 
-      toast.success(`Welcome, ${username || "Agent"}!`);
-      if (onRegisterSuccess) onRegisterSuccess(user);
+      // ✅ 3. Toast and redirect to Profile Setup
+      toast.success(`Welcome, ${username || "Agent"}! Please complete your profile.`);
+      if (onRegisterSuccess) {
+        onRegisterSuccess(user);
+      }
+
+      // ✅ 4. Redirect to profile setup page
+      navigate("/profile-setup");
       onClose();
     } catch (error) {
       toast.error(error.message || "Registration failed");

@@ -8,12 +8,15 @@ import { uploadFileToDrive } from "./uploadToDrive.js";
 import googleAuth from "./googleAuth.js";
 import policyRoutes from "./routes/policyRoutes.js";
 import { db as adminDb, admin } from "./firebaseAdmin.js"; // from firebaseAdmin.js
+import userRoutes from "./routes/userRoutes.js";
 
 // Initialize app
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use("/", googleAuth);
+app.use("/api/users", userRoutes);
+app.use("/google", googleAuth); 
 
 // ✅ Multer setup (temporary local folder for uploads)
 const __filename = fileURLToPath(import.meta.url);

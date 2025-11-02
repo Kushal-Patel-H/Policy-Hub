@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { useAuthContext } from "../../context/AuthContext";
 import { getUserProfile, updateUserProfile } from "../../api/userApi";
+import { getPolicies } from "../../api/policyApi";
+import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
+import { auth } from "../../firebase";
 
 export default function Profile() {
   const { user } = useAuthContext();
@@ -20,6 +23,17 @@ export default function Profile() {
   });
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState("");
+  const [accountStats, setAccountStats] = useState({
+    totalPolicies: 0,
+    activeClients: 0,
+    thisMonth: 0,
+  });
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
 
   // ✅ Fetch user profile data on component mount
   useEffect(() => {
@@ -93,6 +107,66 @@ export default function Profile() {
     };
 
     fetchUserProfile();
+  }, [user]);
+
+  // Fetch account stats from policies
+  useEffect(() => {
+    const fetchAccountStats = async () => {
+      if (!user || !user.uid) {
+        return;
+      }
+
+      try {
+        const response = await getPolicies(user.uid);
+        if (response && response.success) {
+          const policies = response.policies || [];
+          const now = new Date();
+          const currentMonth = now.getMonth();
+          const currentYear = now.getFullYear();
+          
+          let totalPolicies = policies.length;
+          const activeClientsSet = new Set();
+          let thisMonthCount = 0;
+
+          policies.forEach((policy) => {
+            // Count unique active clients
+            if (policy.status === "Active" && policy.customer?.email) {
+              activeClientsSet.add(policy.customer.email);
+            }
+
+            // Count policies created this month
+            if (policy.createdAt) {
+              let createdAt = null;
+              if (policy.createdAt.seconds) {
+                createdAt = new Date(policy.createdAt.seconds * 1000);
+              } else if (policy.createdAt._seconds) {
+                createdAt = new Date(policy.createdAt._seconds * 1000);
+              } else if (typeof policy.createdAt === "string") {
+                createdAt = new Date(policy.createdAt);
+              }
+              
+              if (createdAt && !isNaN(createdAt.getTime())) {
+                const policyMonth = createdAt.getMonth();
+                const policyYear = createdAt.getFullYear();
+                if (policyMonth === currentMonth && policyYear === currentYear) {
+                  thisMonthCount++;
+                }
+              }
+            }
+          });
+
+          setAccountStats({
+            totalPolicies,
+            activeClients: activeClientsSet.size,
+            thisMonth: thisMonthCount,
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching account stats:", error);
+      }
+    };
+
+    fetchAccountStats();
   }, [user]);
 
   const handleChange = (e) => {
@@ -262,6 +336,62 @@ export default function Profile() {
     }
   };
 
+  // Handle password change
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    
+    if (!passwordData.newPassword || !passwordData.confirmPassword) {
+      toast.error("Please fill all password fields");
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error("New passwords do not match");
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters long");
+      return;
+    }
+
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser || !currentUser.email) {
+        toast.error("User not authenticated");
+        return;
+      }
+
+      // Re-authenticate user
+      const credential = EmailAuthProvider.credential(
+        currentUser.email,
+        passwordData.currentPassword
+      );
+      
+      await reauthenticateWithCredential(currentUser, credential);
+      
+      // Update password
+      await updatePassword(currentUser, passwordData.newPassword);
+      
+      toast.success("Password updated successfully!");
+      setShowChangePassword(false);
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (error) {
+      console.error("Password change error:", error);
+      if (error.code === "auth/wrong-password") {
+        toast.error("Current password is incorrect");
+      } else if (error.code === "auth/weak-password") {
+        toast.error("New password is too weak");
+      } else {
+        toast.error(error.message || "Failed to change password");
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -349,15 +479,15 @@ export default function Profile() {
             <div className="mt-4 space-y-3 text-sm text-gray-700">
               <div className="flex justify-between">
                 <span>Total Policies</span>
-                <span className="font-semibold">24</span>
+                <span className="font-semibold">{accountStats.totalPolicies}</span>
               </div>
               <div className="flex justify-between">
                 <span>Active Clients</span>
-                <span className="font-semibold">18</span>
+                <span className="font-semibold">{accountStats.activeClients}</span>
               </div>
               <div className="flex justify-between">
                 <span>This Month</span>
-                <span className="text-green-600 font-semibold">+5</span>
+                <span className="text-green-600 font-semibold">+{accountStats.thisMonth}</span>
               </div>
             </div>
           </div>
@@ -429,32 +559,87 @@ export default function Profile() {
             <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
               🔒 Security Settings
             </h3>
-            <div className="space-y-4 text-sm">
-              <div className="flex justify-between items-center">
-                <div>
-                  <div className="font-semibold text-gray-700">Password</div>
-                  <div className="text-gray-500 text-xs">
-                    Last updated 30 days ago
+            {!showChangePassword ? (
+              <div className="space-y-4 text-sm">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="font-semibold text-gray-700">Password</div>
+                    <div className="text-gray-500 text-xs">
+                      Update your account password
+                    </div>
                   </div>
+                  <button 
+                    onClick={() => setShowChangePassword(true)}
+                    className="text-sm text-[#0A2A67] font-semibold hover:underline"
+                  >
+                    Change Password
+                  </button>
                 </div>
-                <button className="text-sm text-[#0A2A67] font-semibold hover:underline">
-                  Change Password
-                </button>
               </div>
-              <div className="flex justify-between items-center">
+            ) : (
+              <form onSubmit={handlePasswordChange} className="space-y-4">
                 <div>
-                  <div className="font-semibold text-gray-700">
-                    Two-Factor Authentication
-                  </div>
-                  <div className="text-gray-500 text-xs">
-                    Add an extra layer of security
-                  </div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Current Password
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.currentPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    required
+                  />
                 </div>
-                <button className="text-sm text-[#0A2A67] font-semibold hover:underline">
-                  Enable 2FA
-                </button>
-              </div>
-            </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.newPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    required
+                    minLength={6}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Confirm New Password
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    required
+                    minLength={6}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-[#0A2A67] text-white rounded-md text-sm font-semibold hover:bg-[#0a3a87] transition"
+                  >
+                    Update Password
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowChangePassword(false);
+                      setPasswordData({
+                        currentPassword: "",
+                        newPassword: "",
+                        confirmPassword: "",
+                      });
+                    }}
+                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md text-sm font-semibold hover:bg-gray-300 transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       </div>

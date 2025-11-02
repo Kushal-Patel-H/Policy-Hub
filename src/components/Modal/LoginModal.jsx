@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FaLock, FaEnvelope } from "react-icons/fa";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "../../firebase";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -9,6 +9,8 @@ export default function LoginModal({ open, onClose, onSwitchToRegister }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const navigate = useNavigate();
 
   if (!open) return null; // ✅ keep connection logic
@@ -31,6 +33,30 @@ export default function LoginModal({ open, onClose, onSwitchToRegister }) {
     }
   };
 
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (!email) {
+      toast.error("Please enter your email address");
+      return;
+    }
+
+    try {
+      setResetLoading(true);
+      await sendPasswordResetEmail(auth, email);
+      toast.success("Password reset email sent! Please check your inbox.");
+      setShowForgotPassword(false);
+    } catch (error) {
+      console.error("Password reset error:", error);
+      if (error.code === "auth/user-not-found") {
+        toast.error("No account found with this email address");
+      } else {
+        toast.error(error.message || "Failed to send password reset email");
+      }
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
       <div className="w-[92%] max-w-md rounded-2xl bg-[#133B8A] p-8 shadow-2xl relative text-white">
@@ -46,7 +72,7 @@ export default function LoginModal({ open, onClose, onSwitchToRegister }) {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={showForgotPassword ? handleForgotPassword : handleLogin} className="space-y-4">
           {/* Email */}
           <div className="flex items-center bg-[#1f4ba5] rounded-full px-4 py-2">
             <FaEnvelope className="mr-3 text-gray-300" />
@@ -67,20 +93,56 @@ export default function LoginModal({ open, onClose, onSwitchToRegister }) {
               className="w-full bg-transparent outline-none text-white placeholder-gray-300"
               placeholder="Password"
               type="password"
-              required
+              required={!showForgotPassword}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              disabled={showForgotPassword}
             />
           </div>
 
-          {/* Login Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-white text-[#0A2A67] font-semibold px-6 py-2 rounded-full shadow-md hover:scale-105 transition"
-          >
-            {loading ? "Logging in..." : "Login"}
-          </button>
+          {/* Forgot Password Link */}
+          {!showForgotPassword && (
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(true)}
+                className="text-sm text-white/80 hover:text-white underline"
+              >
+                Forgot Password?
+              </button>
+            </div>
+          )}
+
+          {/* Submit Button */}
+          {showForgotPassword ? (
+            <>
+              <button
+                type="submit"
+                disabled={resetLoading}
+                className="w-full bg-white text-[#0A2A67] font-semibold px-6 py-2 rounded-full shadow-md hover:scale-105 transition"
+              >
+                {resetLoading ? "Sending..." : "Send Reset Email"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForgotPassword(false);
+                  setPassword("");
+                }}
+                className="w-full bg-gray-500 text-white font-semibold px-6 py-2 rounded-full shadow-md hover:scale-105 transition mt-2"
+              >
+                Back to Login
+              </button>
+            </>
+          ) : (
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-white text-[#0A2A67] font-semibold px-6 py-2 rounded-full shadow-md hover:scale-105 transition"
+            >
+              {loading ? "Logging in..." : "Login"}
+            </button>
+          )}
         </form>
 
         {/* Footer link */}

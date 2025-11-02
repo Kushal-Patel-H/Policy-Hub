@@ -6,8 +6,12 @@ import averageIcon from "../../assets/average.png";
 import activePremiumsIcon from "../../assets/activePremiums.png";
 import customersIcon from "../../assets/customerss.png";
 import attentionIcon from "../../assets/attention.png";
+import { useAuthContext } from "../../context/AuthContext";
+
 
 export default function Dashboard() {
+  const { user, userData } = useAuthContext();
+
   return (
     <div className="min-h-screen bg-white">
       {/* fixed navbar */}
@@ -15,7 +19,7 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-16">
         {/* Greeting */}
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-          Welcome, Agent {"{X}"}
+          Welcome, Agent {userData?.username || "Agent"}
         </h1>
         <p className="text-gray-600 mt-2">
           Here’s an overview of your policy portfolio and recent activity.

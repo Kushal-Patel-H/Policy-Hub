@@ -1,6 +1,5 @@
-// setupFirestore.js
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, setDoc } from "firebase/firestore";
+import { getFirestore, collection, doc, setDoc } from "firebase/firestore";
 
 const firebaseConfig = {
     apiKey: "AIzaSyCLVUXWVRpBhhiiSWACwvBXcRRUeMpZOlA",
@@ -11,65 +10,86 @@ const firebaseConfig = {
   appId: "1:83752002512:web:98c1fbeb97957ff0f9cfd5",
 };
 
+
+// 🔹 Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 async function setupFirestore() {
-  // 👤 Example agent record
-  await setDoc(doc(db, "users", "demoAgent01"), {
-    fullName: "Demo Agent",
-    email: "agent@example.com",
-    phone: "+91 99999 99999",
+  console.log("🚀 Creating Firestore structure...");
+
+  // --- Collection Structure Setup ---
+  // These are "empty shells" just to initialize your structure
+
+  // 1️⃣ Agents / Users
+  await setDoc(doc(db, "users", "schemaGuide"), {
+    fullName: "",
+    email: "",
+    phone: "",
     role: "Insurance Agent",
-    memberSince: new Date(),
+    memberSince: "",
     profilePhoto: "",
-    totalPolicies: 0,
-    activeClients: 0,
-    thisMonth: 0
+    stats: {
+      totalPolicies: 0,
+      activeClients: 0,
+      thisMonth: 0
+    }
   });
 
-  // 🧾 Example policy record
-  await setDoc(doc(db, "policies", "LI-001-2024"), {
-    agentId: "demoAgent01",
-    customerName: "John Smith",
-    customerEmail: "john@example.com",
-    customerPhone: "+91 88888 88888",
-    policyNumber: "LI-001-2024",
-    policyType: "Life Insurance",
-    startDate: new Date("2024-01-01"),
-    endDate: new Date("2024-12-31"),
-    premiumAmount: 2500,
-    status: "Active",
-    createdAt: new Date(),
+  // 2️⃣ Policies
+  await setDoc(doc(db, "policies", "schemaGuide"), {
+    agentId: "",
+    customer: {
+      name: "",
+      email: "",
+      phone: "",
+    },
+    policyNumber: "",
+    policyType: "",
+    company: "",
+    startDate: "",
+    endDate: "",
+    premiumAmount: 0,
+    status: "",
+    createdAt: "",
     documents: []
   });
 
-  // 🔔 Example alert
-  await setDoc(doc(db, "alerts", "alert001"), {
-    agentId: "demoAgent01",
-    policyId: "LI-001-2024",
-    customerName: "John Smith",
-    alertType: "Renewal Alert",
-    status: "Sent",
-    sentDate: new Date()
+  // 3️⃣ Alerts
+  await setDoc(doc(db, "alerts", "schemaGuide"), {
+    agentId: "",
+    policyId: "",
+    customerName: "",
+    alertType: "",
+    status: "",
+    sentDate: ""
   });
 
-  // ⏰ Example reminder
-  await setDoc(doc(db, "reminders", "rem001"), {
-    agentId: "demoAgent01",
-    policyId: "LI-001-2024",
-    customerName: "John Smith",
-    customerEmail: "john@example.com",
-    policyNumber: "LI-001-2024",
-    premiumAmount: 2500,
-    expiryDate: new Date("2024-12-31"),
-    daysLeft: 30,
-    priority: "Moderate",
-    reminderStatus: "Pending",
-    createdAt: new Date()
+  // 4️⃣ Reminders
+  await setDoc(doc(db, "reminders", "schemaGuide"), {
+    agentId: "",
+    policyId: "",
+    customerEmail: "",
+    policyNumber: "",
+    expiryDate: "",
+    daysLeft: 0,
+    priority: "",
+    reminderStatus: "",
+    createdAt: ""
   });
 
-  console.log("✅ Firestore structure created successfully!");
+  // 5️⃣ Renewals (New collection for policy renewal tracking)
+  await setDoc(doc(db, "renewals", "schemaGuide"), {
+    agentId: "",
+    oldPolicyId: "",
+    newPolicyId: "",
+    customerEmail: "",
+    renewedOn: "",
+    paymentStatus: "",
+    remarks: ""
+  });
+
+  console.log("✅ Firestore structure initialized successfully (no sample data).");
 }
 
 setupFirestore();

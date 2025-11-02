@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { FaUser, FaLock, FaEnvelope } from "react-icons/fa";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../firebase";
+import { auth, db } from "../../firebase"; // ✅ added db import
+import { doc, setDoc } from "firebase/firestore"; // ✅ import for Firestore
 import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
 
@@ -18,7 +19,13 @@ export default function RegisterModal({ open, onClose, onRegisterSuccess, onSwit
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Optional: you can store username in Firestore later under user.uid
+      // ✅ Store username + email in Firestore under users collection
+      await setDoc(doc(db, "users", user.uid), {
+        username: username,
+        email: email,
+        createdAt: new Date(),
+      });
+
       toast.success(`Welcome, ${username || "Agent"}!`);
       if (onRegisterSuccess) onRegisterSuccess(user);
       onClose();
@@ -86,19 +93,18 @@ export default function RegisterModal({ open, onClose, onRegisterSuccess, onSwit
         </form>
 
         {/* Footer Link */}
-<p className="text-center text-gray-300 mt-4">
-  Already have an account?{""}
-  <button
-    onClick={() => {
-      onClose(); // Close Register modal
-      onSwitchToLogin?.(); // Open Login modal
-    }}
-    className="text-white font-semibold underline hover:text-gray-200"
-  >
-    Login
-  </button>
-</p>
-
+        <p className="text-center text-gray-300 mt-4">
+          Already have an account?{" "}
+          <button
+            onClick={() => {
+              onClose();
+              onSwitchToLogin?.();
+            }}
+            className="text-white font-semibold underline hover:text-gray-200"
+          >
+            Login
+          </button>
+        </p>
       </div>
     </div>
   );

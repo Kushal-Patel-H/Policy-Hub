@@ -7,7 +7,14 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Toaster position="top-center" reverseOrder={false} />
+        {/* 🔥 React Hot Toast container */}
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            duration: 3000,
+            style: { background: "#333", color: "#fff" },
+          }}
+        />
         <AppRoutes />
       </AuthProvider>
     </BrowserRouter>

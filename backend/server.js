@@ -14,9 +14,17 @@ import userRoutes from "./routes/userRoutes.js";
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use("/", googleAuth);
+
+// ✅ Mount routes BEFORE other middleware
 app.use("/api/users", userRoutes);
-app.use("/google", googleAuth); 
+app.use("/api/policies", policyRoutes);
+app.use("/google", googleAuth);
+
+// ✅ Also handle OAuth callback at root level (for Google redirect)
+app.get("/oauth2callback", (req, res) => {
+  // Redirect to the actual callback handler
+  res.redirect(`/google/oauth2callback?${new URLSearchParams(req.query).toString()}`);
+}); 
 
 // ✅ Multer setup (temporary local folder for uploads)
 const __filename = fileURLToPath(import.meta.url);
@@ -27,9 +35,6 @@ const upload = multer({ dest: path.join(__dirname, "uploads/") });
 app.get("/", (req, res) => {
   res.send("🚀 Policy Hub backend is running!");
 });
-
-// ✅ Mount the policy routes (important)
-app.use("/api/policies", policyRoutes);
 
 // ✅ (Optional) simple upload test route
 app.post("/upload", upload.single("file"), async (req, res) => {

@@ -1,3 +1,7 @@
+import { useState, useEffect } from "react";
+import { useAuthContext } from "../../context/AuthContext";
+import { getAlerts } from "../../api/policyApi";
+import toast from "react-hot-toast";
 import alertIcon from "../../assets/alerts1.jpg";   // Total Alerts
 import successIcon from "../../assets/alerts2.jpg"; // Successfully Sent
 import pendingIcon from "../../assets/alerts3.jpg"; // Pending
@@ -5,6 +9,97 @@ import failedIcon from "../../assets/alerts4.jpg";  // Failed
 import filterIcon from "../../assets/alerts5.jpg";  // Filters
 
 function Alerts() {
+  const { user } = useAuthContext();
+  const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState("All Statuses");
+  const [typeFilter, setTypeFilter] = useState("All Types");
+
+  // Fetch alerts from Firestore
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      if (!user || !user.uid) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const response = await getAlerts(user.uid);
+        if (response && response.success) {
+          setAlerts(response.alerts || []);
+        } else {
+          console.warn("Unexpected response format:", response);
+          toast.error("Unexpected response from server");
+        }
+      } catch (error) {
+        console.error("Error fetching alerts:", error);
+        const errorMessage = error.response?.data?.error || 
+                           error.message || 
+                           "Failed to load alerts. Make sure the backend server is running.";
+        toast.error(errorMessage);
+        setAlerts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAlerts();
+  }, [user]);
+
+  // Calculate summary counts
+  const totalCount = alerts.length;
+  const sentCount = alerts.filter((a) => a.status === "Sent").length;
+  const pendingCount = alerts.filter((a) => a.status === "Pending").length;
+  const failedCount = alerts.filter((a) => a.status === "Failed").length;
+
+  // Format timestamp
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return "N/A";
+    try {
+      let date;
+      if (timestamp.toDate && typeof timestamp.toDate === "function") {
+        date = timestamp.toDate();
+      } else if (timestamp.seconds) {
+        date = new Date(timestamp.seconds * 1000);
+      } else if (timestamp._seconds) {
+        date = new Date(timestamp._seconds * 1000);
+      } else {
+        date = new Date(timestamp);
+      }
+      return date.toLocaleString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return "N/A";
+    }
+  };
+
+  // Filter alerts
+  const filteredAlerts = alerts.filter((alert) => {
+    const matchesStatus =
+      statusFilter === "All Statuses" || alert.status === statusFilter;
+
+    const matchesType =
+      typeFilter === "All Types" || alert.alertType === typeFilter;
+
+    return matchesStatus && matchesType;
+  });
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-500">Loading alerts...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Page description */}
@@ -12,32 +107,44 @@ function Alerts() {
         Monitor and manage email alerts sent to customers for policy renewals and expiries here
       </p>
 
-    {/* Summary Cards */}
-<div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-  {[
-    { icon: alertIcon, label: "Total Alerts" },
-    { icon: successIcon, label: "Successfully Sent" },
-    { icon: pendingIcon, label: "Pending" },
-    { icon: failedIcon, label: "Failed" },
-  ].map((item, i) => (
-    <div
-      key={i}
-      className="relative flex flex-col bg-white shadow rounded-lg p-4 border overflow-hidden min-h-[120px]"
-    >
-      {/* left accent */}
-      <div className="absolute inset-y-0 left-0 w-1 bg-[#0A2A67]" />
+      {/* Summary Cards */}
+      <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="relative flex flex-col bg-white shadow rounded-lg p-4 border overflow-hidden min-h-[120px]">
+          <div className="absolute inset-y-0 left-0 w-1 bg-[#0A2A67]" />
+          <div className="flex items-center justify-between w-full">
+            <img src={alertIcon} alt="Total Alerts" className="w-10 h-10" />
+            <p className="text-xl font-bold text-gray-900">{totalCount}</p>
+          </div>
+          <p className="mt-2 text-gray-700 font-medium text-sm">Total Alerts</p>
+        </div>
 
-      {/* top row: icon + value */}
-      <div className="flex items-center justify-between w-full">
-        <img src={item.icon} alt={item.label} className="w-10 h-10" />
-        <p className="text-xl font-bold text-gray-900">N</p>
+        <div className="relative flex flex-col bg-white shadow rounded-lg p-4 border overflow-hidden min-h-[120px]">
+          <div className="absolute inset-y-0 left-0 w-1 bg-[#0A2A67]" />
+          <div className="flex items-center justify-between w-full">
+            <img src={successIcon} alt="Successfully Sent" className="w-10 h-10" />
+            <p className="text-xl font-bold text-gray-900">{sentCount}</p>
+          </div>
+          <p className="mt-2 text-gray-700 font-medium text-sm">Successfully Sent</p>
+        </div>
+
+        <div className="relative flex flex-col bg-white shadow rounded-lg p-4 border overflow-hidden min-h-[120px]">
+          <div className="absolute inset-y-0 left-0 w-1 bg-[#0A2A67]" />
+          <div className="flex items-center justify-between w-full">
+            <img src={pendingIcon} alt="Pending" className="w-10 h-10" />
+            <p className="text-xl font-bold text-gray-900">{pendingCount}</p>
+          </div>
+          <p className="mt-2 text-gray-700 font-medium text-sm">Pending</p>
+        </div>
+
+        <div className="relative flex flex-col bg-white shadow rounded-lg p-4 border overflow-hidden min-h-[120px]">
+          <div className="absolute inset-y-0 left-0 w-1 bg-[#0A2A67]" />
+          <div className="flex items-center justify-between w-full">
+            <img src={failedIcon} alt="Failed" className="w-10 h-10" />
+            <p className="text-xl font-bold text-gray-900">{failedCount}</p>
+          </div>
+          <p className="mt-2 text-gray-700 font-medium text-sm">Failed</p>
+        </div>
       </div>
-
-      {/* label */}
-      <p className="mt-2 text-gray-700 font-medium text-sm">{item.label}</p>
-    </div>
-  ))}
-</div>
 
 
       {/* Filters */}
@@ -51,13 +158,21 @@ function Alerts() {
 
           {/* Right: Dropdowns */}
           <div className="flex gap-4">
-            <select className="border rounded-md px-4 py-2 text-sm text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#0A2A67]">
+            <select
+              className="border rounded-md px-4 py-2 text-sm text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#0A2A67]"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
               <option>All Statuses</option>
               <option>Sent</option>
               <option>Pending</option>
               <option>Failed</option>
             </select>
-            <select className="border rounded-md px-4 py-2 text-sm text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#0A2A67]">
+            <select
+              className="border rounded-md px-4 py-2 text-sm text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#0A2A67]"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            >
               <option>All Types</option>
               <option>Expiry Alert</option>
               <option>Renewal Alert</option>
@@ -72,67 +187,68 @@ function Alerts() {
           Alert History
         </div>
 
-        <div className="divide-y min-w-[600px]">
-          {/* Row 1 */}
-          <div className="flex flex-col sm:flex-row sm:items-center px-4 py-3 text-sm gap-2">
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className="text-green-600 font-medium">● Sent</span>
-                <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs">Expiry Alert</span>
-              </div>
-              <div className="text-gray-800 font-semibold">Emily Davis</div>
-              <div className="text-xs text-gray-500">Customer</div>
-            </div>
-            <div className="flex-1">
-              <div className="text-gray-800">HO-004-2023</div>
-              <div className="text-xs text-gray-500">Policy Number</div>
-            </div>
-            <div className="flex-1 text-gray-600 text-xs">
-              Mar 15, 2024, 05:30 AM
-              <div className="text-gray-400">Sent Date</div>
-            </div>
+        {filteredAlerts.length === 0 ? (
+          <div className="px-4 py-12 text-center">
+            <p className="text-gray-500 text-lg">No alerts found</p>
+            {alerts.length === 0 && (
+              <p className="text-gray-400 text-sm mt-2">
+                No alerts have been sent yet
+              </p>
+            )}
           </div>
-
-          {/* Row 2 */}
-          <div className="flex flex-col sm:flex-row sm:items-center px-4 py-3 text-sm gap-2">
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className="text-green-600 font-medium">● Sent</span>
-                <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">Renewal Alert</span>
+        ) : (
+          <div className="divide-y min-w-[600px]">
+            {filteredAlerts.map((alert) => (
+              <div
+                key={alert.id}
+                className="flex flex-col sm:flex-row sm:items-center px-4 py-3 text-sm gap-2"
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`font-medium ${
+                        alert.status === "Sent"
+                          ? "text-green-600"
+                          : alert.status === "Pending"
+                          ? "text-yellow-500"
+                          : "text-red-600"
+                      }`}
+                    >
+                      ● {alert.status}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs ${
+                        alert.alertType === "Renewal Alert"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-yellow-100 text-yellow-700"
+                      }`}
+                    >
+                      {alert.alertType || "Alert"}
+                    </span>
+                  </div>
+                  <div className="text-gray-800 font-semibold">
+                    {alert.customerName || "N/A"}
+                  </div>
+                  <div className="text-xs text-gray-500">Customer</div>
+                </div>
+                <div className="flex-1">
+                  <div className="text-gray-800">
+                    {alert.policyId || alert.policyNumber || "N/A"}
+                  </div>
+                  <div className="text-xs text-gray-500">Policy Number</div>
+                </div>
+                <div className="flex-1 text-gray-600 text-xs">
+                  {alert.sentDate
+                    ? formatTimestamp(alert.sentDate)
+                    : alert.status === "Pending"
+                    ? "Scheduled"
+                    : "N/A"}
+                  <div className="text-gray-400">Sent Date</div>
+                </div>
               </div>
-              <div className="text-gray-800 font-semibold">John Smith</div>
-              <div className="text-xs text-gray-500">Customer</div>
-            </div>
-            <div className="flex-1">
-              <div className="text-gray-800">LI-001-2024</div>
-              <div className="text-xs text-gray-500">Policy Number</div>
-            </div>
-            <div className="flex-1 text-gray-600 text-xs">
-              Nov 15, 2024, 05:30 AM
-              <div className="text-gray-400">Sent Date</div>
-            </div>
+            ))}
           </div>
-
-          {/* Row 3 */}
-          <div className="flex flex-col sm:flex-row sm:items-center px-4 py-3 text-sm gap-2">
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className="text-yellow-500 font-medium">● Pending</span>
-                <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">Renewal Alert</span>
-              </div>
-              <div className="text-gray-800 font-semibold">Sarah Johnson</div>
-              <div className="text-xs text-gray-500">Customer</div>
-            </div>
-            <div className="flex-1">
-              <div className="text-gray-800">AI-002-2024</div>
-              <div className="text-xs text-gray-500">Policy Number</div>
-            </div>
-            <div className="flex-1 text-gray-600 text-xs">
-              N/A
-              <div className="text-gray-400">Scheduled</div>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

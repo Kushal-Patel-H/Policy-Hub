@@ -3,6 +3,7 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "Backend server for Policy Hub - handles Firestore and Google Drive uploads",
+  "proxy": "http://localhost:3000",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

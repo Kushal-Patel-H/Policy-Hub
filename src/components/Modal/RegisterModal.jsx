@@ -5,7 +5,7 @@ import { auth, db } from "../../firebase";
 import { doc, setDoc } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import { initializeUserProfile } from "../../../api/userApi.js";
+import { initializeUserProfile } from "../../api/userApi.js";
 
 
 export default function RegisterModal({
@@ -33,8 +33,17 @@ export default function RegisterModal({
       );
       const user = userCredential.user;
 
-      // ✅ 2. Initialize Firestore document with full profile schema
-      await initializeUserProfile(user.uid, email, username);
+     
+// ✅ 2. Initialize Firestore document with full profile schema
+const res = await initializeUserProfile(user.uid, email, username);
+
+// ✅ 3. Save UID in localStorage for profile page
+if (res?.data?.user?.uid) {
+  localStorage.setItem("uid", res.data.user.uid);
+} else {
+  localStorage.setItem("uid", user.uid); // fallback if backend doesn’t return uid
+}
+
 
       // ✅ 3. Toast and redirect to Profile Setup
       toast.success(`Welcome, ${username || "Agent"}! Please complete your profile.`);
@@ -43,7 +52,7 @@ export default function RegisterModal({
       }
 
       // ✅ 4. Redirect to profile setup page
-      navigate("/profile-setup");
+      navigate("/profile");
       onClose();
     } catch (error) {
       toast.error(error.message || "Registration failed");

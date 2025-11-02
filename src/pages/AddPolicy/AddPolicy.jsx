@@ -1,8 +1,12 @@
 import React, { useState } from "react";
 import { FaUser, FaUpload, FaFileAlt, FaClipboardList } from "react-icons/fa";
 import toast from "react-hot-toast";
+import { useAuthContext } from "../../context/AuthContext";
+import { addPolicy } from "../../api/policyApi";
 
 export default function AddPolicy() {
+  const { user } = useAuthContext();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   // 🔹 Dropdown Lists
   const policyTypes = [
     "Life Insurance",
@@ -44,35 +48,121 @@ export default function AddPolicy() {
   };
 
   const handleFileChange = (e) => {
-    setFormData({ ...formData, policyDocument: e.target.files[0] });
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("File size should be less than 10MB");
+        e.target.value = ""; // Clear the input
+        return;
+      }
+      setFormData({ ...formData, policyDocument: file });
+      toast.success(`File selected: ${file.name}`);
+    } else {
+      setFormData({ ...formData, policyDocument: null });
+    }
   };
 
-  const handleSubmit = (e) => {
+  const handleRemoveFile = () => {
+    setFormData({ ...formData, policyDocument: null });
+    // Reset file input
+    const fileInput = document.querySelector('input[type="file"]');
+    if (fileInput) {
+      fileInput.value = "";
+    }
+    toast.success("File removed");
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + " " + sizes[i];
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    console.log("Policy Created:", formData);
-    toast.success("✅ Policy Created Successfully!");
+    // Check if user is authenticated
+    if (!user || !user.uid) {
+      toast.error("Please log in to create a policy");
+      return;
+    }
 
-    // 🔹 Reset Form
-    setFormData({
-      policyNumber: "",
-      policyType: "",
-      insuranceCompany: "",
-      customerName: "",
-      customerContact: "",
-      customerEmail: "",
-      nomineeName: "",
-      issueDate: "",
-      expiryDate: "",
-      premiumAmount: "",
-      premiumType: "",
-      sumAssured: "",
-      policyStatus: "",
-      reminderDaysBefore: 15,
-      notes: "",
-      documentType: "",
-      policyDocument: null,
-    });
+    setIsSubmitting(true);
+
+    try {
+      // Prepare policy data for backend
+      const policyData = {
+        agentId: user.uid, // Use Firebase Auth UID as agentId
+        policyNumber: formData.policyNumber,
+        policyType: formData.policyType,
+        company: formData.insuranceCompany,
+        status: formData.policyStatus,
+        customerName: formData.customerName,
+        customerEmail: formData.customerEmail,
+        customerPhone: formData.customerContact,
+        startDate: formData.issueDate,
+        endDate: formData.expiryDate,
+        premiumAmount: formData.premiumAmount,
+        documentType: formData.documentType,
+        // Additional fields that might be useful
+        nomineeName: formData.nomineeName || "",
+        premiumType: formData.premiumType || "",
+        sumAssured: formData.sumAssured || "",
+        reminderDaysBefore: formData.reminderDaysBefore || 15,
+        notes: formData.notes || "",
+      };
+
+      // Call API to add policy
+      const response = await addPolicy(policyData, formData.policyDocument);
+
+      if (response.success) {
+        toast.success(response.message || "✅ Policy Created Successfully!");
+        
+        // 🔹 Reset Form
+        setFormData({
+          policyNumber: "",
+          policyType: "",
+          insuranceCompany: "",
+          customerName: "",
+          customerContact: "",
+          customerEmail: "",
+          nomineeName: "",
+          issueDate: "",
+          expiryDate: "",
+          premiumAmount: "",
+          premiumType: "",
+          sumAssured: "",
+          policyStatus: "",
+          reminderDaysBefore: 15,
+          notes: "",
+          documentType: "",
+          policyDocument: null,
+        });
+
+        // Reset file input
+        const fileInput = document.querySelector('input[type="file"]');
+        if (fileInput) {
+          fileInput.value = "";
+        }
+
+        // Optionally redirect to policies page after successful creation
+        // navigate("/policies");
+      } else {
+        toast.error(response.error || "Failed to create policy");
+      }
+    } catch (error) {
+      console.error("Error creating policy:", error);
+      toast.error(
+        error.response?.data?.error ||
+          error.message ||
+          "Failed to create policy. Please try again."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -331,23 +421,58 @@ export default function AddPolicy() {
               </select>
             </div>
 
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-1">Upload Document</label>
-              <label className="w-full flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-md p-6 cursor-pointer hover:bg-gray-50">
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                <FaUpload className="text-3xl text-gray-500 mb-2" />
-                <span className="text-gray-500 text-sm text-center">
-                  <span className="text-blue-600 font-medium cursor-pointer">
-                    Click to upload
-                  </span>{" "}
-                  or drag and drop PDF, DOC, DOCX, JPG, JPEG, PNG up to 10MB
-                </span>
-              </label>
+              <input
+                type="file"
+                id="policy-document-upload"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              {!formData.policyDocument ? (
+                <label
+                  htmlFor="policy-document-upload"
+                  className="w-full flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-md p-6 cursor-pointer hover:bg-gray-50 transition"
+                >
+                  <FaUpload className="text-3xl text-gray-500 mb-2" />
+                  <span className="text-gray-500 text-sm text-center">
+                    <span className="text-blue-600 font-medium cursor-pointer">
+                      Click to upload
+                    </span>{" "}
+                    or drag and drop PDF, DOC, DOCX, JPG, JPEG, PNG up to 10MB
+                  </span>
+                </label>
+              ) : (
+                <div className="w-full border-2 border-green-300 bg-green-50 rounded-md p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 flex-1">
+                      <FaFileAlt className="text-2xl text-green-600" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900">
+                          {formData.policyDocument.name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {formatFileSize(formData.policyDocument.size)}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveFile}
+                      className="ml-4 px-3 py-1 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <label
+                    htmlFor="policy-document-upload"
+                    className="mt-2 inline-block text-sm text-blue-600 hover:text-blue-800 cursor-pointer"
+                  >
+                    Change file
+                  </label>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -381,9 +506,12 @@ export default function AddPolicy() {
           </button>
           <button
             type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            disabled={isSubmitting}
+            className={`px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 ${
+              isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+            }`}
           >
-            Create Policy
+            {isSubmitting ? "Creating..." : "Create Policy"}
           </button>
         </div>
       </form>

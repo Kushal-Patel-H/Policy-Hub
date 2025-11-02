@@ -94,17 +94,20 @@ export const getReminders = async (req, res) => {
           (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
         );
 
-        // Only include policies that haven't expired yet (or expired recently for reminder)
-        if (daysUntilExpiry >= -30) {
-          const reminderDaysBefore = data.reminderDaysBefore || 15;
+        // Include policies that haven't expired yet (within 90 days) or expired recently (within 30 days)
+        if (daysUntilExpiry >= -30 && daysUntilExpiry <= 90) {
+          const reminderDaysBefore = Number(data.reminderDaysBefore) || 15;
 
           // Create reminder if within reminder window OR if expired (for renewal)
-          if (daysUntilExpiry <= reminderDaysBefore || daysUntilExpiry < 0) {
+          // Show all policies expiring within 90 days for better visibility
+          if (daysUntilExpiry <= 90 || daysUntilExpiry < 0) {
             let priority = "Upcoming";
             if (daysUntilExpiry <= 7 && daysUntilExpiry >= 0) {
               priority = "Critical";
             } else if (daysUntilExpiry <= 30 && daysUntilExpiry >= 0) {
               priority = "Moderate";
+            } else if (daysUntilExpiry > 30 && daysUntilExpiry <= 90) {
+              priority = "Upcoming";
             } else if (daysUntilExpiry < 0) {
               priority = "Expired"; // Show expired policies too
             }
@@ -141,7 +144,7 @@ export const getReminders = async (req, res) => {
   }
 };
 
-// ✅ Get alerts from Firestore
+// ✅ Get alerts from Firestore and generate from policies
 export const getAlerts = async (req, res) => {
   try {
     const { agentId } = req.query;
@@ -150,25 +153,124 @@ export const getAlerts = async (req, res) => {
       return res.status(400).json({ error: "Missing agentId parameter" });
     }
 
+    // First, get alerts from the alerts collection (manually created alerts)
     const alertsRef = db.collection("alerts");
-    const snapshot = await alertsRef.where("agentId", "==", agentId).get();
+    const alertsSnapshot = await alertsRef.where("agentId", "==", agentId).get();
 
     const alerts = [];
-    snapshot.forEach((doc) => {
+    alertsSnapshot.forEach((doc) => {
       const data = doc.data();
       alerts.push({
         id: doc.id,
         ...data,
+        source: "manual", // Manual alerts from alerts collection
       });
     });
 
-    // Sort by sentDate descending (newest first)
+    // Also generate alerts from policies based on expiry dates
+    const policiesRef = db.collection("policies");
+    const policiesSnapshot = await policiesRef
+      .where("agentId", "==", agentId)
+      .where("status", "==", "Active")
+      .get();
+
+    const now = new Date();
+
+    policiesSnapshot.forEach((doc) => {
+      const policy = doc.data();
+      const endDate = policy.endDate || policy.expiryDate;
+
+      if (endDate) {
+        let expiryDate;
+        
+        // Handle Firestore Timestamp
+        if (endDate.toDate && typeof endDate.toDate === "function") {
+          expiryDate = endDate.toDate();
+        } else if (endDate.seconds) {
+          expiryDate = new Date(endDate.seconds * 1000);
+        } else if (endDate._seconds) {
+          expiryDate = new Date(endDate._seconds * 1000);
+        } else if (endDate instanceof Date) {
+          expiryDate = endDate;
+        } else if (typeof endDate === "string") {
+          expiryDate = new Date(endDate);
+        } else {
+          return; // Skip if date is invalid
+        }
+
+        // Check if date is valid
+        if (isNaN(expiryDate.getTime())) {
+          return; // Skip invalid dates
+        }
+
+        const daysUntilExpiry = Math.ceil(
+          (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+        );
+
+        // Generate alerts for policies that are expiring soon or have expired
+        // Include all policies expiring within 90 days or expired within 30 days
+        if (daysUntilExpiry <= 90 || (daysUntilExpiry < 0 && daysUntilExpiry >= -30)) {
+          let alertType = "Expiry Alert";
+          let status = "Pending";
+
+          // Determine alert type and status based on days until expiry
+          if (daysUntilExpiry < 0) {
+            alertType = "Expiry Alert"; // Already expired
+            status = "Pending"; // Needs attention
+          } else if (daysUntilExpiry <= 7) {
+            alertType = "Expiry Alert"; // Critical - expiring soon
+            status = "Pending";
+          } else if (daysUntilExpiry <= 15) {
+            alertType = "Renewal Alert"; // Moderate - renewal reminder
+            status = "Pending";
+          } else {
+            alertType = "Renewal Alert"; // Upcoming renewal
+            status = "Pending";
+          }
+
+          // Check if alert already exists for this policy
+          const existingAlert = alerts.find(
+            (a) => a.policyId === doc.id || a.policyNumber === policy.policyNumber
+          );
+
+          if (!existingAlert) {
+            alerts.push({
+              id: `policy_${doc.id}`,
+              policyId: doc.id,
+              policyNumber: policy.policyNumber,
+              customerName: policy.customer?.name || "",
+              customerEmail: policy.customer?.email || "",
+              alertType: alertType,
+              status: status,
+              sentDate: null, // No sent date yet for auto-generated alerts
+              expiryDate: expiryDate.toISOString(),
+              daysUntilExpiry: daysUntilExpiry,
+              source: "auto", // Auto-generated from policy
+              createdAt: policy.createdAt || Timestamp.now(),
+            });
+          }
+        }
+      }
+    });
+
+    // Sort by days until expiry (most urgent first), then by sentDate (newest first)
     alerts.sort((a, b) => {
+      // Prioritize auto-generated alerts that haven't been sent
+      if (a.source === "auto" && !a.sentDate && b.source === "manual") return -1;
+      if (b.source === "auto" && !b.sentDate && a.source === "manual") return 1;
+
+      // Sort by days until expiry for auto-generated alerts
+      if (a.daysUntilExpiry !== undefined && b.daysUntilExpiry !== undefined) {
+        return a.daysUntilExpiry - b.daysUntilExpiry;
+      }
+
+      // Sort by sentDate for manual alerts
       if (a.sentDate && b.sentDate) {
         const aTime = a.sentDate.seconds || a.sentDate._seconds || 0;
         const bTime = b.sentDate.seconds || b.sentDate._seconds || 0;
         return bTime - aTime;
       }
+
       return 0;
     });
 
@@ -218,6 +320,24 @@ export const addPolicy = async (req, res) => {
       driveFile = await uploadFileToDrive(filePath, file.originalname);
     }
 
+    // ✅ Parse dates and convert to Timestamps for Firestore
+    let startDateTimestamp = null;
+    let endDateTimestamp = null;
+    
+    if (startDate) {
+      const startDateObj = new Date(startDate);
+      if (!isNaN(startDateObj.getTime())) {
+        startDateTimestamp = Timestamp.fromDate(startDateObj);
+      }
+    }
+    
+    if (endDate || expiryDate) {
+      const endDateObj = new Date(endDate || expiryDate);
+      if (!isNaN(endDateObj.getTime())) {
+        endDateTimestamp = Timestamp.fromDate(endDateObj);
+      }
+    }
+
     // ✅ Prepare policy data object for Firestore
     const policyData = {
       agentId,
@@ -225,8 +345,8 @@ export const addPolicy = async (req, res) => {
       policyNumber: policyNumber || "",
       policyType: policyType || "",
       status: status || "Active",
-      startDate: startDate || "",
-      endDate: endDate || expiryDate || "",
+      startDate: startDateTimestamp || startDate || "",
+      endDate: endDateTimestamp || endDate || expiryDate || "",
       premiumAmount: premiumAmount ? Number(premiumAmount) : 0,
       premiumType: premiumType || "",
       sumAssured: sumAssured ? Number(sumAssured) : 0,

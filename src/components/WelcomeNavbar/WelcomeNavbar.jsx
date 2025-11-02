@@ -44,8 +44,22 @@ export default function WelcomeNavbar() {
       </header>
 
       {/* Modals */}
-      <LoginModal open={showLogin} onClose={() => setShowLogin(false)} />
-      <RegisterModal open={showRegister} onClose={() => setShowRegister(false)} />
+      <LoginModal
+        open={showLogin}
+        onClose={() => setShowLogin(false)}
+        onSwitchToRegister={() => {
+          setShowLogin(false);
+          setShowRegister(true);
+        }}
+      />
+      <RegisterModal
+        open={showRegister}
+        onClose={() => setShowRegister(false)}
+        onSwitchToLogin={() => {
+          setShowRegister(false);
+          setShowLogin(true);
+        }}
+      />
     </>
   );
 }

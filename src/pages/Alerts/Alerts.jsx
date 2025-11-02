@@ -238,12 +238,28 @@ function Alerts() {
                   <div className="text-xs text-gray-500">Policy Number</div>
                 </div>
                 <div className="flex-1 text-gray-600 text-xs">
-                  {alert.sentDate
-                    ? formatTimestamp(alert.sentDate)
-                    : alert.status === "Pending"
-                    ? "Scheduled"
-                    : "N/A"}
-                  <div className="text-gray-400">Sent Date</div>
+                  {alert.sentDate ? (
+                    <>
+                      {formatTimestamp(alert.sentDate)}
+                      <div className="text-gray-400">Sent Date</div>
+                    </>
+                  ) : alert.daysUntilExpiry !== undefined ? (
+                    <>
+                      {alert.daysUntilExpiry < 0
+                        ? `${Math.abs(alert.daysUntilExpiry)} days expired`
+                        : `${alert.daysUntilExpiry} days until expiry`}
+                      <div className="text-gray-400">
+                        {alert.status === "Pending" ? "Pending" : "Status"}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {alert.status === "Pending" ? "Scheduled" : "N/A"}
+                      <div className="text-gray-400">
+                        {alert.status === "Pending" ? "Status" : "Sent Date"}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             ))}

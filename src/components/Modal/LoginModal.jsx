@@ -62,7 +62,7 @@ export default function LoginModal({ open, onClose, onSwitchToRegister }) {
       <div className="w-[92%] max-w-md rounded-2xl bg-[#133B8A] p-8 shadow-2xl relative text-white">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-2xl font-bold">Sign In</h3>
+          <h3 className="text-2xl font-bold">Login</h3>
           <button
             onClick={onClose}
             className="text-gray-300 hover:text-white text-xl"

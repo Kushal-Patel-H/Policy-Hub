@@ -104,7 +104,7 @@ function Alerts() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Page description */}
       <p className="text-center text-lg md:text-xl text-gray-700 font-medium">
-        Monitor and manage email alerts sent to customers for policy renewals and expiries here
+        Monitor and  alerts of customers for policy renewals and expiries here.
       </p>
 
       {/* Summary Cards */}

@@ -11,7 +11,8 @@ export default function AddPolicy() {
   const policyTypes = [
     "Life Insurance",
     "Health Insurance",
-    "Motor Insurance",
+    "Vehicle Insurance",
+    "Cargo Insurance",
     "Home Insurance",
     "Travel Insurance",
     "Others",
